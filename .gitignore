@@ -39,3 +39,18 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# model files and export workspace
+*.pte
+export/weights/
+export/da3-repo/
+export/__pycache__/
+export/sim_photos/
+export/quality/
+
+# agent tooling (local only)
+.claude/
+CLAUDE.md
+AGENTS.md
+.env
+export/.venv/
