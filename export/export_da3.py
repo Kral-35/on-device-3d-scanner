@@ -24,12 +24,11 @@ import torch
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE / "da3-repo" / "src"
-WEIGHTS = HERE / "weights" / "da3-small"
 OUT = HERE / "pte"
 sys.path.insert(0, str(REPO))
 
 
-def load_net():
+def load_net(model: str):
     # api.py drags in moviepy/plyfile/trimesh via its export utils; build the
     # net directly from config + safetensors instead.
     from safetensors.torch import load_file
@@ -37,9 +36,9 @@ def load_net():
     from depth_anything_3.cfg import create_object, load_config
     from depth_anything_3.registry import MODEL_REGISTRY
 
-    config = load_config(MODEL_REGISTRY["da3-small"])
+    config = load_config(MODEL_REGISTRY[f"da3-{model}"])
     net = create_object(config)
-    state = load_file(WEIGHTS / "model.safetensors")
+    state = load_file(HERE / "weights" / f"da3-{model}" / "model.safetensors")
     state = {k.removeprefix("model."): v for k, v in state.items()}
     missing, unexpected = net.load_state_dict(state, strict=False)
     # The released checkpoint lacks a few convs of the aux ray branch; we use
@@ -134,7 +133,7 @@ def make_input(views, height, width, seed=0):
 
 
 def stage_smoke(args):
-    net = load_net()
+    net = load_net(args.model)
     wrapper = DA3Export(net, args.views, args.height, args.width).eval()
     x = make_input(args.views, args.height, args.width)
     t0 = time.time()
@@ -150,7 +149,7 @@ def stage_export(args):
     from executorch.backends.xnnpack.partition.xnnpack_partitioner import XnnpackPartitioner
     from executorch.exir import to_edge_transform_and_lower
 
-    net = load_net()
+    net = load_net(args.model)
     wrapper = DA3Export(net, args.views, args.height, args.width).eval()
     x = make_input(args.views, args.height, args.width)
 
@@ -163,7 +162,7 @@ def stage_export(args):
     lowered = to_edge_transform_and_lower(ep, partitioner=[XnnpackPartitioner()])
     et = lowered.to_executorch()
     OUT.mkdir(exist_ok=True)
-    name = f"da3_small_{args.views}v_{args.height}x{args.width}_xnnpack.pte"
+    name = f"da3_{args.model}_{args.views}v_{args.height}x{args.width}_xnnpack.pte"
     path = OUT / name
     path.write_bytes(et.buffer)
     print(f"lower+serialize ok in {time.time() - t0:.0f}s -> {path} ({path.stat().st_size / 1e6:.0f}MB)")
@@ -172,7 +171,7 @@ def stage_export(args):
 def stage_verify(args):
     from executorch.runtime import Runtime
 
-    name = f"da3_small_{args.views}v_{args.height}x{args.width}_xnnpack.pte"
+    name = f"da3_{args.model}_{args.views}v_{args.height}x{args.width}_xnnpack.pte"
     path = OUT / name
     x = make_input(args.views, args.height, args.width)
 
@@ -183,7 +182,7 @@ def stage_verify(args):
     pte_outs = method.execute([x.contiguous()])
     dt_pte = time.time() - t0
 
-    net = load_net()
+    net = load_net(args.model)
     wrapper = DA3Export(net, args.views, args.height, args.width).eval()
     t0 = time.time()
     with torch.no_grad():
@@ -315,7 +314,7 @@ def stage_quality(args):
     x, rgb01 = load_views(paths, args.height, args.width)
     assert x.shape[1] == args.views, f"need exactly {args.views} images, got {x.shape[1]}"
 
-    path = OUT / f"da3_small_{args.views}v_{args.height}x{args.width}_xnnpack.pte"
+    path = OUT / f"da3_{args.model}_{args.views}v_{args.height}x{args.width}_xnnpack.pte"
     rt = Runtime.get()
     program = rt.load_program(str(path))
     method = program.load_method("forward")
@@ -365,7 +364,7 @@ def stage_export_coreml(args):
     import coremltools as ct
     from executorch.backends.apple.coreml.compiler import CoreMLBackend
 
-    net = load_net()
+    net = load_net(args.model)
     wrapper = DA3Export(net, args.views, args.height, args.width).eval()
     x = make_input(args.views, args.height, args.width)
 
@@ -374,9 +373,14 @@ def stage_export_coreml(args):
         ep = torch.export.export(wrapper, (x,))
     print(f"torch.export ok in {time.time() - t0:.0f}s")
 
+    # fp32 default: fp16 can overflow DINOv2 activation outliers
+    precision = ct.precision.FLOAT16 if args.precision == "fp16" else ct.precision.FLOAT32
+    compute_unit = (
+        ct.ComputeUnit.CPU_AND_GPU if args.compute_units == "cpu_and_gpu" else ct.ComputeUnit.ALL
+    )
     compile_specs = CoreMLBackend.generate_compile_specs(
-        compute_precision=ct.precision.FLOAT32,  # fp16 overflows DINOv2 activation outliers
-        compute_unit=ct.ComputeUnit.ALL,
+        compute_precision=precision,
+        compute_unit=compute_unit,
         minimum_deployment_target=ct.target.iOS18,
     )
     t0 = time.time()
@@ -398,7 +402,8 @@ def stage_export_coreml(args):
     )
     et = lowered.to_executorch()
     OUT.mkdir(exist_ok=True)
-    path = OUT / f"da3_small_{args.views}v_{args.height}x{args.width}_coreml_fp32.pte"
+    suffix = "_gpu" if args.compute_units == "cpu_and_gpu" else ""
+    path = OUT / f"da3_{args.model}_{args.views}v_{args.height}x{args.width}_coreml_{args.precision}{suffix}.pte"
     path.write_bytes(et.buffer)
     print(f"coreml lower ok in {time.time() - t0:.0f}s -> {path} ({path.stat().st_size / 1e6:.0f}MB)")
 
@@ -410,6 +415,9 @@ if __name__ == "__main__":
         required=True,
         choices=["smoke", "export", "verify", "quality", "export-coreml"],
     )
+    ap.add_argument("--model", choices=["small", "base"], default="small")
+    ap.add_argument("--precision", choices=["fp32", "fp16"], default="fp32")
+    ap.add_argument("--compute-units", choices=["all", "cpu_and_gpu"], default="all")
     ap.add_argument("--images", nargs="*", default=None, help="quality stage: explicit image paths")
     ap.add_argument("--views", type=int, default=4)
     ap.add_argument("--height", type=int, default=336)

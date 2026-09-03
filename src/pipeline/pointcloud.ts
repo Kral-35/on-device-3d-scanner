@@ -35,7 +35,7 @@ function poseEncToCameras(poseEnc: Float32Array): Camera[] {
 }
 
 export type PointCloud = {
-  // xyzw per point (w unused, padded for the GPU) and rgba colors in [0,1]
+  // xyz + per-point world radius in w, and rgba colors in [0,1]
   positions: Float32Array;
   colors: Float32Array;
   count: number;
@@ -50,7 +50,7 @@ const CONF_PERCENTILE = 0.25;
 const EDGE_RATIO = 0.08;
 // Voxel grid resolution for deduplication, as a fraction of the scene radius.
 // Overlapping views produce near-coincident points; one survivor per voxel.
-const VOXEL_FRACTION = 1 / 220;
+const VOXEL_FRACTION = 1 / 420;
 
 export function buildPointCloud(
   depth: Float32Array,
@@ -102,7 +102,9 @@ export function buildPointCloud(
         positions[o] = px;
         positions[o + 1] = py;
         positions[o + 2] = pz;
-        positions[o + 3] = 1;
+        // True footprint: one source pixel at depth d covers d/fx world units,
+        // so far points get big splats and near points stay crisp.
+        positions[o + 3] = (0.5 * STRIDE * d) / cam.fx;
         colors[o] = rgb[pi * 3] / 255;
         colors[o + 1] = rgb[pi * 3 + 1] / 255;
         colors[o + 2] = rgb[pi * 3 + 2] / 255;
@@ -152,7 +154,7 @@ export function buildPointCloud(
     outPos[ko] = positions[o];
     outPos[ko + 1] = positions[o + 1];
     outPos[ko + 2] = positions[o + 2];
-    outPos[ko + 3] = 1;
+    outPos[ko + 3] = positions[o + 3];
     outCol[ko] = colors[o];
     outCol[ko + 1] = colors[o + 1];
     outCol[ko + 2] = colors[o + 2];

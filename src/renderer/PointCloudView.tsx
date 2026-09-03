@@ -6,8 +6,11 @@ import tgpu, { d, std } from 'typegpu';
 import { mat4 } from 'wgpu-matrix';
 import type { PointCloud } from '../pipeline/pointcloud';
 
-// Splat diameter as a fraction of the scene radius.
-const SPLAT_SCALE = 0.006;
+// Overlap multiplier on each point's true footprint (w component), so
+// neighboring splats fuse into a closed surface.
+const SPLAT_OVERLAP = 1.7;
+// Gaussian alpha falls to ~exp(-FALLOFF) at the splat rim.
+const FALLOFF = 3.0;
 const AUTO_ROTATE_SPEED = 0.35; // rad/s until the first touch
 const INERTIA_DECAY = 4; // 1/s exponential decay of fling velocity
 
@@ -57,7 +60,7 @@ export function PointCloudView({ cloud }: { cloud: PointCloud }) {
       const Camera = d.struct({
         view: d.mat4x4f,
         proj: d.mat4x4f,
-        splatSize: d.f32,
+        splatScale: d.f32,
       });
       const camera = root.createUniform(Camera);
 
@@ -80,10 +83,9 @@ export function PointCloudView({ cloud }: { cloud: PointCloud }) {
         'use gpu';
         const p = positions.$[input.instanceIndex];
         const corner = corners.$[input.vertexIndex];
-        // Billboard in view space so splats have a real world size: they grow
-        // as the camera approaches and close up into a surface.
+        // Billboard in view space; p.w carries the point's own world radius.
         const viewPos = std.mul(camera.$.view, d.vec4f(p.xyz, 1));
-        const offset = std.mul(corner, camera.$.splatSize);
+        const offset = std.mul(corner, p.w * camera.$.splatScale);
         const offsetPos = d.vec4f(
           std.add(viewPos.xy, offset),
           viewPos.z,
@@ -101,10 +103,14 @@ export function PointCloudView({ cloud }: { cloud: PointCloud }) {
         out: d.vec4f,
       })((input) => {
         'use gpu';
-        if (std.dot(input.uv, input.uv) > 1) {
+        const r2 = std.dot(input.uv, input.uv);
+        // Gaussian falloff; drop the near-invisible rim so it neither writes
+        // depth nor smears, which keeps unsorted blending artifact-free.
+        const alpha = std.exp(-d.f32(FALLOFF) * r2);
+        if (r2 > 1 || alpha < 0.12) {
           std.discard();
         }
-        return input.color;
+        return d.vec4f(input.color.rgb, alpha);
       });
 
       const depthTexture = device.createTexture({
@@ -117,7 +123,17 @@ export function PointCloudView({ cloud }: { cloud: PointCloud }) {
       const pipeline = root.createRenderPipeline({
         vertex: vertexMain,
         fragment: fragmentMain,
-        targets: { format },
+        targets: {
+          format,
+          blend: {
+            color: {
+              srcFactor: 'src-alpha',
+              dstFactor: 'one-minus-src-alpha',
+              operation: 'add',
+            },
+            alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+          },
+        },
         depthStencil: {
           format: 'depth24plus',
           depthWriteEnabled: true,
@@ -135,7 +151,7 @@ export function PointCloudView({ cloud }: { cloud: PointCloud }) {
         proj
       );
       const [cx, cy, cz] = cloud.center;
-      const splatSize = cloud.radius * SPLAT_SCALE;
+      const splatScale = SPLAT_OVERLAP;
 
       let raf = 0;
       let last = performance.now();
@@ -168,7 +184,7 @@ export function PointCloudView({ cloud }: { cloud: PointCloud }) {
         // The model's camera space is +y down; use a flipped up vector so the
         // scene appears upright.
         mat4.lookAt(eye, [cx, cy, cz], [0, -1, 0], view);
-        camera.write({ view, proj, splatSize });
+        camera.write({ view, proj, splatScale });
 
         pipeline
           .withColorAttachment({
