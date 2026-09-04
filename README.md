@@ -16,10 +16,10 @@ The model is [Depth Anything 3](https://github.com/bytedance-seed/depth-anything
 
 ```bash
 npm install
-npx expo run:ios
+npx expo run:ios       # or: npx expo run:android
 ```
 
-Requires an Expo dev build (New Architecture; Expo Go does not support react-native-executorch). The model is downloaded once from [Hugging Face](https://huggingface.co/nklockiewicz/react-native-executorch-demo-models) and cached, ~480MB on iOS for the default BASE model. If you want to serve your own export instead, copy `.env.example` to `.env` and point `EXPO_PUBLIC_MODEL_BASE` at your own host.
+There is nothing to download beyond this: `npx expo run:ios` compiles the app (a so-called Expo development build) and installs it on your simulator or connected device, then starts the bundler. You need the usual native toolchain (Xcode for iOS, Android Studio / SDK for Android), and on a physical iPhone a free Apple developer signing identity picked in Xcode. The one thing that does NOT work is Expo Go, the app from the App Store: it cannot load the native modules this project uses (react-native-executorch, WebGPU), which is why the project builds its own binary. The model is downloaded once from [Hugging Face](https://huggingface.co/nklockiewicz/react-native-executorch-demo-models) and cached, ~480MB on iOS for the default BASE model. If you want to serve your own export instead, copy `.env.example` to `.env` and point `EXPO_PUBLIC_MODEL_BASE` at your own host.
 
 Change `ios.bundleIdentifier` in [app.json](app.json) to something of your own before building.
 
