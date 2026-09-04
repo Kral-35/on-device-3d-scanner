@@ -21,5 +21,7 @@ export const MODEL_SOURCE = Platform.select({
     IOS_BACKEND === 'coreml'
       ? `${MODEL_BASE}/coreml/da3_${MODEL}_${VIEWS}v_${HEIGHT}x${WIDTH}_coreml_${COREML_PRECISION}.pte`
       : `${MODEL_BASE}/xnnpack/da3_${MODEL}_${VIEWS}v_${HEIGHT}x${WIDTH}_xnnpack.pte`,
-  default: `${MODEL_BASE}/xnnpack/da3_${MODEL}_${VIEWS}v_${HEIGHT}x${WIDTH}_xnnpack.pte`,
+  // Android always uses the small model: base needs more memory than most
+  // devices allow. See the Android section of the README before judging speed.
+  default: `${MODEL_BASE}/xnnpack/da3_small_${VIEWS}v_${HEIGHT}x${WIDTH}_xnnpack.pte`,
 });

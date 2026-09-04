@@ -64,7 +64,9 @@ The first inference after install is much slower because CoreML compiles the mod
 
 ## Android
 
-The XNNPACK export and code paths are in place and the app selects them automatically, but I have not benchmarked it on an Android device yet. Expect fp32 CPU inference to be slower than the iOS numbers above.
+Android is wired up but honestly experimental. The app selects the SMALL model on XNNPACK (fp32 CPU); the BASE model is deliberately not offered there: the 8-view attention needs a memory arena that gets the process killed on most devices. Even SMALL wants roughly 2GB free during inference, and I have not yet verified it on a physical phone (a 2GB emulator kills it; real 12GB devices should fare better). Expect CPU inference to be much slower than the iOS numbers above regardless.
+
+The promising path is ExecuTorch's Vulkan (GPU) backend: `export_da3.py --stage export-vulkan` produces a working export where all the attention stays on GPU, and a `da3_small_8v_560x420_vulkan.pte` is in the Hugging Face repo. Getting there required working around three executorch 1.4.1 export bugs and blocklisting 17 ops the runtime lacks (all in the export script). It loads and runs on an emulator but a real-device verdict is pending; if you try it on hardware (swap the filename in src/config.ts), I would genuinely like to hear the result.
 
 ## Credit and license
 
