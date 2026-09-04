@@ -46,9 +46,6 @@
         {
           "ios": {
             "deploymentTarget": "17.0"
-          },
-          "android": {
-            "minSdkVersion": 26
           }
         }
       ]
